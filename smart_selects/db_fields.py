@@ -150,6 +150,9 @@ class ChainedForeignKey(ForeignKey):
         ``view_name`` controls which view to use, 'chained_filter' or 'chained_filter_all'.
 
         """
+        # If foreignkey model is set to self (or the model name as a String), this won't work.
+        # It seems that something like 'myApp.myModel' will.
+        # TODO: Make this work for self and that String definition way.
         if isinstance(to, six.string_types):
             self.to_app_name, self.to_model_name = to.split('.')
         else:

@@ -15,6 +15,11 @@ from smart_selects.utils import (get_keywords, sort_results, serialize_results,
 
 
 def is_m2m(model_class, field):
+    # Limpiamos el field de posibles lookups que pueda tener añadidos
+    # en el caso que lo usemos para inspeccionar a través de un FK
+    field = field.split('__')[0]
+    # TODO: Comprobar si no hay una mejor manera de hacer esto.
+
     try:
         from django.db.models.fields.related import ReverseManyRelatedObjectsDescriptor
         is_pre_19_syntax = True
@@ -37,6 +42,16 @@ def filterchain(request, app, model, field, foreign_key_app_name, foreign_key_mo
                 foreign_key_field_name, value, manager=None):
     model_class = get_model(app, model)
     m2m = is_m2m(model_class, field)
+
+    # Dummy trick to get custom foreign key lookup value
+    if '__' in field:
+        chain_field_class = get_model(app, field.split('__')[0])
+        value = eval("chain_field_class.objects.get(pk=value)."+'.'.join(field.split('__')[1:]))
+    # Example: we used 'website__language__lang'
+    # -> chain_field_class = get_model(app, website) ... -> Website
+    # value = Website.objects.get(pk=value).language.lang ... -> 'es'
+    # We'll do this complex query: queryset.filter(website__language__lang='es')
+
     keywords = get_keywords(field, value, m2m=m2m)
     # filter queryset using limit_choices_to
     limit_choices_to = get_limit_choices_to(foreign_key_app_name, foreign_key_model_name, foreign_key_field_name)

@@ -55,6 +55,11 @@ def serialize_results(results):
         {'value': item.pk, 'display': force_text(item)} for item in results
     ]
 
+def serialize_mptt_results(results):
+    return [
+        {'value': item.pk, 'display': '{}{}'.format(item.level*'---',force_text(item))} for item in results
+    ]
+
 
 def get_keywords(field, value, m2m=False):
     if value == '0':

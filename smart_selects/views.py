@@ -66,7 +66,7 @@ def filterchain(request, app, model, field, foreign_key_app_name, foreign_key_mo
         sort_results(results)
 
     if hasattr(model_class, '_mptt_meta'):
-        serialize_results = serialize_mptt_results(results)
+        serialized_results = serialize_mptt_results(results)
     else:
         serialized_results = serialize_results(results)
     results_json = json.dumps(serialized_results)

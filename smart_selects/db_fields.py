@@ -1,4 +1,6 @@
-from django.db.models.fields.related import ForeignKey, ManyToManyField
+from django.db.models.fields.related import (
+    ForeignKey, ManyToManyField, RECURSIVE_RELATIONSHIP_CONSTANT
+)
 from django.utils import six
 
 try:
@@ -11,7 +13,28 @@ except ImportError:
 from smart_selects import form_fields
 
 
-class ChainedManyToManyField(ManyToManyField):
+class IntrospectiveFieldMixin(object):
+    def __init__(self, to, **kwargs):
+        if isinstance(to, six.string_types):
+            if to == RECURSIVE_RELATIONSHIP_CONSTANT:
+                # This will be handled in contribute_to_class(), when we have
+                # enough informatino to set these properly
+                self.to_app_name, self.to_model_name = (None, to)
+            else:
+                self.to_app_name, self.to_model_name = to.split('.')
+        else:
+            self.to_app_name = to._meta.app_label
+            self.to_model_name = to._meta.object_name
+
+        super(IntrospectiveFieldMixin, self).__init__(to, **kwargs)
+
+    def contribute_to_class(self, cls, *args, **kwargs):
+        self.to_app_name = cls._meta.app_label
+        self.to_model_name = cls._meta.object_name
+        super(IntrospectiveFieldMixin, self).contribute_to_class(cls, *args, **kwargs)
+
+
+class ChainedManyToManyField(IntrospectiveFieldMixin, ManyToManyField):
     """
     chains the choices of a previous combo box with this ManyToMany
     """
@@ -45,15 +68,6 @@ class ChainedManyToManyField(ManyToManyField):
         ``auto_choose`` controls whether auto select the choice when there is only one available choice.
 
         """
-        try:
-            isbasestring = isinstance(to, basestring)
-        except NameError:
-            isbasestring = isinstance(to, str)
-        if isbasestring:
-            self.to_app_name, self.to_model_name = to.split('.')
-        else:
-            self.to_app_name = to._meta.app_label
-            self.to_model_name = to._meta.object_name
         self.chain_field = chained_field
         self.chained_model_field = chained_model_field
         self.auto_choose = auto_choose
@@ -112,12 +126,12 @@ class ChainedManyToManyField(ManyToManyField):
         return super(ChainedManyToManyField, self).formfield(**defaults)
 
 
-class ChainedForeignKey(ForeignKey):
+class ChainedForeignKey(IntrospectiveFieldMixin, ForeignKey):
     """
     chains the choices of a previous combo box with this one
     """
     def __init__(self, to, chained_field=None, chained_model_field=None,
-                 show_all=False, auto_choose=False, view_name=None, **kwargs):
+                 show_all=False, auto_choose=False, sort=True, view_name=None, **kwargs):
         """
         examples:
 
@@ -135,6 +149,7 @@ class ChainedForeignKey(ForeignKey):
                 chained_model_field="continent",
                 show_all=True,
                 auto_choose=True,
+                sort=True,
                 # limit_choices_to={'name':'test'}
             )
         ``chained_field`` is the name of the ForeignKey field referenced by ChainedForeignKey of the same Model.
@@ -147,21 +162,16 @@ class ChainedForeignKey(ForeignKey):
 
         ``auto_choose`` controls whether auto select the choice when there is only one available choice.
 
+        ``sort`` controls whether or not to sort results lexicographically or not.
+
         ``view_name`` controls which view to use, 'chained_filter' or 'chained_filter_all'.
 
         """
-        # If foreignkey model is set to self (or the model name as a String), this won't work.
-        # It seems that something like 'myApp.myModel' will.
-        # TODO: Make this work for self and that String definition way.
-        if isinstance(to, six.string_types):
-            self.to_app_name, self.to_model_name = to.split('.')
-        else:
-            self.to_app_name = to._meta.app_label
-            self.to_model_name = to._meta.object_name
         self.chained_field = chained_field
         self.chained_model_field = chained_model_field
         self.show_all = show_all
         self.auto_choose = auto_choose
+        self.sort = sort
         self.view_name = view_name
         ForeignKey.__init__(self, to, **kwargs)
 
@@ -175,6 +185,7 @@ class ChainedForeignKey(ForeignKey):
             'chained_model_field': None,
             'show_all': False,
             'auto_choose': False,
+            'sort': True,
             'view_name': None,
         }
 
@@ -184,6 +195,7 @@ class ChainedForeignKey(ForeignKey):
             'chained_model_field': 'chained_model_field',
             'show_all': 'show_all',
             'auto_choose': 'auto_choose',
+            'sort': 'sort',
             'view_name': 'view_name',
         }
 
@@ -216,6 +228,7 @@ class ChainedForeignKey(ForeignKey):
             'chained_model_field': self.chained_model_field,
             'show_all': self.show_all,
             'auto_choose': self.auto_choose,
+            'sort': self.sort,
             'view_name': self.view_name,
             'foreign_key_app_name': foreign_key_app_name,
             'foreign_key_model_name': foreign_key_model_name,

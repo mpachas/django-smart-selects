@@ -1,10 +1,8 @@
 import django
 
 from django.conf import settings
-from django.contrib.admin.templatetags.admin_static import static
 from django.core.urlresolvers import reverse
 from django.forms.widgets import Select, SelectMultiple
-from django import forms
 from django.utils.safestring import mark_safe
 from django.utils.encoding import force_text
 from django.utils.html import escape
@@ -20,6 +18,7 @@ except ImportError:
 
 if django.VERSION >= (1, 2, 0) and getattr(settings, 'USE_DJANGO_JQUERY', True):
     USE_DJANGO_JQUERY = True
+    JQUERY_URL = None
 else:
     USE_DJANGO_JQUERY = False
     JQUERY_URL = getattr(settings, 'JQUERY_URL', 'https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js')
@@ -27,16 +26,45 @@ else:
 URL_PREFIX = getattr(settings, "SMART_SELECTS_URL_PREFIX", "")
 
 
-class ChainedSelect(Select):
+class JqueryMediaMixin(object):
+    @property
+    def media(self):
+        """Media defined as a dynamic property instead of an inner class."""
+        media = super(JqueryMediaMixin, self).media
+
+        js = []
+
+        if JQUERY_URL:
+            js.append(JQUERY_URL)
+        elif JQUERY_URL is not False:
+            vendor = '' if django.VERSION < (1, 9, 0) else 'vendor/jquery/'
+            extra = '' if settings.DEBUG else '.min'
+
+            jquery_paths = [
+                '{}jquery{}.js'.format(vendor, extra),
+                'jquery.init.js',
+            ]
+
+            if USE_DJANGO_JQUERY:
+                jquery_paths = ['admin/js/{}'.format(path) for path in jquery_paths]
+
+            js.extend(jquery_paths)
+
+        media.add_js(js)
+        return media
+
+
+class ChainedSelect(JqueryMediaMixin, Select):
     def __init__(self, to_app_name, to_model_name, chained_field, chained_model_field,
                  foreign_key_app_name, foreign_key_model_name, foreign_key_field_name,
-                 show_all, auto_choose, manager=None, view_name=None, *args, **kwargs):
+                 show_all, auto_choose, sort=True, manager=None, view_name=None, *args, **kwargs):
         self.to_app_name = to_app_name
         self.to_model_name = to_model_name
         self.chained_field = chained_field
         self.chained_model_field = chained_model_field
         self.show_all = show_all
         self.auto_choose = auto_choose
+        self.sort = sort
         self.manager = manager
         self.view_name = view_name
         self.foreign_key_app_name = foreign_key_app_name
@@ -47,19 +75,10 @@ class ChainedSelect(Select):
     @property
     def media(self):
         """Media defined as a dynamic property instead of an inner class."""
-        vendor = '' if django.VERSION < (1, 9, 0) else 'vendor/jquery/'
-        extra = '' if settings.DEBUG else '.min'
-        js = [
-            '%sjquery%s.js' % (vendor, extra),
-            'jquery.init.js',
-        ]
-        if USE_DJANGO_JQUERY:
-            js = [static('admin/js/%s' % url) for url in js]
-        elif JQUERY_URL:
-            js = [JQUERY_URL]
-        js = js + [static('smart-selects/admin/js/chainedfk.js')]
+        media = super(ChainedSelect, self).media
 
-        return forms.Media(js=js)
+        media.add_js(['smart-selects/admin/js/chainedfk.js'])
+        return media
 
     def render(self, name, value, attrs=None, choices=()):
         if len(name.split('-')) > 1:  # formset
@@ -130,7 +149,8 @@ class ChainedSelect(Select):
         if self.show_all:
             final_choices.append(("", (empty_label)))
             self.choices = list(self.choices)
-            self.choices.sort(key=lambda x: unicode_sorter(x[1]))
+            if self.sort:
+                self.choices.sort(key=lambda x: unicode_sorter(x[1]))
             for ch in self.choices:
                 if ch not in final_choices:
                     final_choices.append(ch)
@@ -142,9 +162,9 @@ class ChainedSelect(Select):
         else:
             final_attrs['class'] = 'chained'
 
-        output = super(ChainedSelect, self).render(name, value, final_attrs)
-        output += js
-        
+        output = js
+        output += super(ChainedSelect, self).render(name, value, final_attrs)
+
         return mark_safe(output)
 
     def _get_available_choices(self, queryset, value):
@@ -167,7 +187,8 @@ class ChainedSelect(Select):
                     except:  # give up
                         filter = {}
             filtered = list(get_model(self.to_app_name, self.to_model_name).objects.filter(**filter).distinct())
-            sort_results(filtered)
+            if self.sort:
+                sort_results(filtered)
         else:
             # invalid value for queryset
             filtered = []
@@ -175,7 +196,7 @@ class ChainedSelect(Select):
         return filtered
 
 
-class ChainedSelectMultiple(SelectMultiple):
+class ChainedSelectMultiple(JqueryMediaMixin, SelectMultiple):
     def __init__(self, to_app_name, to_model_name, chain_field, chained_model_field,
                  foreign_key_app_name, foreign_key_model_name, foreign_key_field_name,
                  auto_choose, manager=None, *args, **kwargs):
@@ -194,19 +215,10 @@ class ChainedSelectMultiple(SelectMultiple):
     @property
     def media(self):
         """Media defined as a dynamic property instead of an inner class."""
-        vendor = '' if django.VERSION < (1, 9, 0) else 'vendor/jquery/'
-        extra = '' if settings.DEBUG else '.min'
-        js = [
-            '%sjquery%s.js' % (vendor, extra),
-            'jquery.init.js',
-        ]
-        if USE_DJANGO_JQUERY:
-            js = [static('admin/js/%s' % url) for url in js]
-        elif JQUERY_URL:
-            js = [JQUERY_URL]
-        js = js + [static('smart-selects/admin/js/chainedm2m.js')]
+        media = super(ChainedSelectMultiple, self).media
 
-        return forms.Media(js=js)
+        media.add_js(['smart-selects/admin/js/chainedm2m.js'])
+        return media
 
     def render(self, name, value, attrs=None, choices=()):
         if len(name.split('-')) > 1:  # formset
@@ -267,6 +279,6 @@ class ChainedSelectMultiple(SelectMultiple):
             final_attrs['class'] = 'chained'
         output = super(ChainedSelectMultiple, self).render(name, value, final_attrs)
         output += js
-        
+
         return mark_safe(output)
 

@@ -1,8 +1,13 @@
 from setuptools import setup, find_packages
 
+
+with open('README.md', 'r') as f:
+    long_desc = f.read()
+
 setup(name="django-smart-selects",
-      version="1.2.5",
+      version="1.3.2",
       description="Django application to handle chained model fields.",
+      long_description=long_desc,
       author="Patrick Lauber",
       author_email="digi@treepy.com",
       url="https://github.com/digi604/django-smart-selects",

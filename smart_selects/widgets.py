@@ -46,7 +46,7 @@ class JqueryMediaMixin(object):
             ]
 
             if USE_DJANGO_JQUERY:
-                jquery_paths = ['admin/js/{}'.format(path) for path in jquery_paths]
+                jquery_paths = ['{}admin/js/{}'.format(settings.STATIC_URL, path) for path in jquery_paths]
 
             js.extend(jquery_paths)
 
@@ -264,7 +264,7 @@ class ChainedSelectMultiple(JqueryMediaMixin, SelectMultiple):
         js = js % {"chainfield": chain_field,
                    "url": url,
                    "id": attrs['id'],
-                   'value': json.dumps(value),
+                   'value': '""' if value is None else json.dumps(value),
                    'auto_choose': auto_choose}
 
         # since we cannot deduce the value of the chained_field
@@ -281,4 +281,3 @@ class ChainedSelectMultiple(JqueryMediaMixin, SelectMultiple):
         output += js
 
         return mark_safe(output)
-

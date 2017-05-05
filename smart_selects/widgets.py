@@ -81,8 +81,14 @@ class ChainedSelect(JqueryMediaMixin, Select):
         return media
 
     def render(self, name, value, attrs=None, choices=()):
+        inline = 'no-inline'
+
         if len(name.split('-')) > 1:  # formset
-            chained_field = '-'.join(name.split('-')[:-1] + [self.chained_field])
+            inline = 'inline'
+            if '__' in self.chained_model_field:
+                chained_field = self.chained_model_field.split('__')[-1]
+            else:
+                chained_field = '-'.join(name.split('-')[:-1] + [self.chained_field])
         else:
             chained_field = self.chained_field
 
@@ -94,6 +100,7 @@ class ChainedSelect(JqueryMediaMixin, Select):
         else:
             view_name = self.view_name
         kwargs = {
+            'inline': inline,
             'app': self.to_app_name,
             'model': self.to_model_name,
             'field': self.chained_model_field,

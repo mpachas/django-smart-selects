@@ -17,7 +17,8 @@ from smart_selects.utils import (get_keywords, sort_results, serialize_results,
 def is_m2m(model_class, field):
     # Limpiamos el field de posibles lookups que pueda tener añadidos
     # en el caso que lo usemos para inspeccionar a través de un FK
-    field = field.split('__')[0]
+    if '__' in field:
+        field = field.split('__')[-1]
     # TODO: Comprobar si no hay una mejor manera de hacer esto.
 
     try:
@@ -59,25 +60,27 @@ def do_filter(qs, keywords, exclude=False):
 
 
 @never_cache
-def filterchain(request, app, model, field, foreign_key_app_name, foreign_key_model_name,
+def filterchain(request, inline, app, model, field, foreign_key_app_name, foreign_key_model_name,
                 foreign_key_field_name, value, manager=None):
     model_class = get_model(app, model)
     m2m = is_m2m(model_class, field)
-
     # Dummy trick to get custom foreign key lookup value
-    if '__' in field:
+    if '__' in field and inline == 'no-inline':
         chain_field_class = get_model(app, field.split('__')[0])
-        value = eval("chain_field_class.objects.get(pk=value)."+'.'.join(field.split('__')[1:]))
-    # Example: we used 'website__language__lang'
-    # -> chain_field_class = get_model(app, website) ... -> Website
-    # value = Website.objects.get(pk=value).language.lang ... -> 'es'
-    # We'll do this complex query: queryset.filter(website__language__lang='es')
+        if 'number' in field:
+            value = eval("chain_field_class.objects.get(pk=value)."+'.'.join(field.split('__')[1:]))
+        elif not inline:
+            value = eval("chain_field_class.objects.get(pk=value)."+'.'.join(field.split('__')[1:])+'.pk')
+
+    if '__' in field:
+        if 'number' not in field:
+            field = field.split('__')[-1]
 
     keywords = get_keywords(field, value, m2m=m2m)
+
     # filter queryset using limit_choices_to
     limit_choices_to = get_limit_choices_to(foreign_key_app_name, foreign_key_model_name, foreign_key_field_name)
     queryset = get_queryset(model_class, manager, limit_choices_to)
-
     results = do_filter(queryset, keywords)
 
     # Sort results if model doesn't include a default ordering.

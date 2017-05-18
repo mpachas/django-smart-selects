@@ -80,10 +80,10 @@
                 $(chainfield).change(function(){
                     // Handle the case of inlines, where the ID will depend on which list item we are dealing with
                     var localID = id;
-                    if (localID.indexOf("__prefix__") > -1) {
-                        var prefix = $(this).attr("id").match(/\d+/)[0];
-                        localID = localID.replace("__prefix__", prefix);
-                    }
+                    // if (localID.indexOf("__prefix__") > -1) {
+                    //     var prefix = $(this).attr("id").match(/\d+/)[0];
+                    //     localID = localID.replace("__prefix__", prefix);
+                    // }
 
                     var start_value = $(localID).val();
                     var val = $(this).val();
@@ -102,3 +102,22 @@
         };
     }();
 })(jQuery || django.jQuery);
+
+django.jQuery(document).on('formset:added', function(event, $row, formsetName) {
+    var id = $row[0].id;
+    var number = id.split('-').slice(-1)[0];
+    var select = $('#'+id+' select.chained')[0]; 
+    var script = $('#'+id+' script').html();
+
+    script = script.replace('__prefix__', number);
+    $('#'+id+' script').html(script);
+
+    var chainfield = '#id_'+select.getAttribute('chainfield');
+    var url = select.getAttribute('query_url');
+    var id = '#'+select.id;
+    var value = undefined;
+    var auto_choose = select.getAttribute('auto_choose');
+    var empty_label = select.getAttribute('empty_label');
+
+    chainedfk.init(chainfield, url, id, value, empty_label, auto_choose);
+});

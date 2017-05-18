@@ -169,6 +169,11 @@ class ChainedSelect(JqueryMediaMixin, Select):
         else:
             final_attrs['class'] = 'chained'
 
+        final_attrs['chainfield'] = chained_field
+        final_attrs['query_url'] = url
+        final_attrs['auto_choose'] = auto_choose
+        final_attrs['empty_label'] = empty_label
+
         output = js
         output += super(ChainedSelect, self).render(name, value, final_attrs)
 

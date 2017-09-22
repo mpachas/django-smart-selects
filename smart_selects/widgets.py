@@ -80,6 +80,16 @@ class ChainedSelect(JqueryMediaMixin, Select):
         media.add_js(['smart-selects/admin/js/chainedfk.js'])
         return media
 
+    def build_attrs(self, base_attrs, extra_attrs=None, **kwargs):
+        """
+        Helper function for building an attribute dictionary.
+        This is combination of the same method from Django<=1.10 and Django1.11+
+        """
+        attrs = dict(base_attrs, **kwargs)
+        if extra_attrs:
+            attrs.update(extra_attrs)
+        return attrs
+
     def render(self, name, value, attrs=None, choices=()):
         inline = 'no-inline'
 

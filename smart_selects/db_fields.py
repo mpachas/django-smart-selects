@@ -245,6 +245,33 @@ class ChainedForeignKey(IntrospectiveFieldMixin, ForeignKey):
         defaults.update(kwargs)
         return super(ChainedForeignKey, self).formfield(**defaults)
 
+class ChainedSelect2ForeignKey(ChainedForeignKey):
+    
+    def formfield(self, **kwargs):
+        foreign_key_app_name = self.model._meta.app_label
+        foreign_key_model_name = self.model._meta.object_name
+        foreign_key_field_name = self.name
+        defaults = {
+            'form_class': form_fields.ChainedModelSelect2ChoiceField,
+            'queryset': self.rel.to._default_manager.complex_filter(
+                self.rel.limit_choices_to),
+            'to_field_name': self.rel.field_name,
+            'to_app_name': self.to_app_name,
+            'to_model_name': self.to_model_name,
+            'chained_field': self.chained_field,
+            'chained_model_field': self.chained_model_field,
+            'show_all': self.show_all,
+            'auto_choose': self.auto_choose,
+            'sort': self.sort,
+            'view_name': self.view_name,
+            'foreign_key_app_name': foreign_key_app_name,
+            'foreign_key_model_name': foreign_key_model_name,
+            'foreign_key_field_name': foreign_key_field_name,
+        }
+        defaults.update(kwargs)
+        return super(ChainedSelect2ForeignKey, self).formfield(**defaults)
+
+
 
 class GroupedForeignKey(ForeignKey):
     """

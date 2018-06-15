@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+import django
 from django.utils.encoding import force_text
 try:
     from django.apps import apps

@@ -1,3 +1,4 @@
+import django
 from django.db.models.fields.related import (
     ForeignKey, ManyToManyField, RECURSIVE_RELATIONSHIP_CONSTANT
 )
